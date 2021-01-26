@@ -24,10 +24,10 @@ import java.util.UUID;
 
 @Controller("/image")
 public class SendImageController {
-
+    
     @Inject
     S3Service s3Service;
-
+    
     @Secured(SecurityRule.IS_ANONYMOUS)
     @Post(value = "/upload",
             consumes = MediaType.MULTIPART_FORM_DATA,
@@ -36,59 +36,40 @@ public class SendImageController {
     public HttpResponse saveImage(
             CompletedFileUpload file
     ) throws IOException {
-
+        
         String fileKey = UUID
                 .randomUUID()
                 .toString();
-        String key;
-
-        int lastIndexOf = file.getFilename().lastIndexOf(".");
-        String ext =  file.getFilename().substring(lastIndexOf + 1);
-        key =  fileKey + "." + ext;
-
-        File tempFile;
+        int lastIndexOf = file
+                .getFilename()
+                .lastIndexOf(".");
+        String ext = file
+                .getFilename()
+                .substring(lastIndexOf + 1);
+        var key = fileKey + "." + ext;
+        
         try {
-            tempFile = File.createTempFile(
-                    file.getFilename(),
-                    "temp"
-            );
-        } catch (IOException e) {
-            return HttpResponse.status(HttpStatus.INTERNAL_SERVER_ERROR, "couldn't read file");
-        }
-
-        Files.copy(
-                file.getInputStream(),
-                tempFile.toPath(),
-                StandardCopyOption.REPLACE_EXISTING
-        );
-
-        try {
-                ObjectMetadata objectMetadata = new ObjectMetadata();
-                System.out.println(file.getContentType().toString());
-                objectMetadata.setContentType(file.getContentType().toString());
-                objectMetadata.setContentLength(file.getSize());
-
-                InputStream is = new FileInputStream(tempFile);
-                PutObjectRequest request = new PutObjectRequest(
-                        System.getenv("S3_BUCKET"),
-                        key,
-                        is,
-                        objectMetadata
-                ).withCannedAcl(CannedAccessControlList.PublicRead); // <5>
-                s3Service.s3client.putObject(request);
-                is.close();
-
-            HashMap<String, String> result = new HashMap<>();
-            result.put("key", key);
-
-            return HttpResponse.accepted();
-
+            ObjectMetadata objectMetadata = new ObjectMetadata();
+            objectMetadata.setContentType(file
+                                                  .getContentType()
+                                                  .toString());
+            objectMetadata.setContentLength(file.getSize());
+            var is = file.getInputStream();
+            PutObjectRequest request = new PutObjectRequest(
+                    System.getenv("S3_BUCKET"),
+                    key,
+                    is,
+                    objectMetadata
+            ).withCannedAcl(CannedAccessControlList.AuthenticatedRead);
+            var result = s3Service.s3client.putObject(request);
+            return HttpResponse.ok(result);
         } catch (OutOfMemoryError e) {
             e.printStackTrace();
             return HttpResponse.status(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "exception thrown");
+                    "exception thrown"
+            );
         }
     }
-
+    
 }
