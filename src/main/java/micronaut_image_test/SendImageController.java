@@ -47,14 +47,14 @@ public class SendImageController {
                 .getFilename()
                 .substring(lastIndexOf + 1);
         var key = fileKey + "." + ext;
-        
+    
+        var is = file.getInputStream();
         try {
             ObjectMetadata objectMetadata = new ObjectMetadata();
             objectMetadata.setContentType(file
                                                   .getContentType()
                                                   .toString());
             objectMetadata.setContentLength(file.getSize());
-            var is = file.getInputStream();
             PutObjectRequest request = new PutObjectRequest(
                     System.getenv("S3_BUCKET"),
                     key,
@@ -69,6 +69,8 @@ public class SendImageController {
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "exception thrown"
             );
+        } finally {
+            is.close();
         }
     }
     
